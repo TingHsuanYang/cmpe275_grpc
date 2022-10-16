@@ -1,4 +1,8 @@
-# Route Blocking 
+# Route Blocking
+
+## Architecture
+
+![Architecture](architecture.png)
 
 We have switched from the basic socket example to the next level of 
 complexity with the introduction of two new technologies 1) protobuf, 
