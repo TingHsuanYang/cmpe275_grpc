@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<classpath>
+	<classpathentry kind="src" path="src"/>
+	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
+	<classpathentry kind="lib" path="/Users/evanyang/Desktop/SJSU/275/labs/grpc-route-blocking/lib/grpc-netty-shaded-1.44.1.jar"/>
+	<classpathentry kind="lib" path="/Users/evanyang/Desktop/SJSU/275/labs/grpc-route-blocking/lib/failureaccess-1.0.1.jar"/>
+	<classpathentry kind="lib" path="/Users/evanyang/Desktop/SJSU/275/labs/grpc-route-blocking/lib/grpc-all-1.44.1.jar"/>
+	<classpathentry kind="lib" path="/Users/evanyang/Desktop/SJSU/275/labs/grpc-route-blocking/lib/grpc-api-1.44.1.jar"/>
+	<classpathentry kind="lib" path="/Users/evanyang/Desktop/SJSU/275/labs/grpc-route-blocking/lib/grpc-auth-1.44.1.jar"/>
+	<classpathentry kind="lib" path="/Users/evanyang/Desktop/SJSU/275/labs/grpc-route-blocking/lib/grpc-context-1.44.1.jar"/>
+	<classpathentry kind="lib" path="/Users/evanyang/Desktop/SJSU/275/labs/grpc-route-blocking/lib/grpc-core-1.44.1.jar"/>
+	<classpathentry kind="lib" path="/Users/evanyang/Desktop/SJSU/275/labs/grpc-route-blocking/lib/grpc-grpclb-1.44.1.jar"/>
+	<classpathentry kind="lib" path="/Users/evanyang/Desktop/SJSU/275/labs/grpc-route-blocking/lib/grpc-netty-1.44.1.jar"/>
+	<classpathentry kind="lib" path="/Users/evanyang/Desktop/SJSU/275/labs/grpc-route-blocking/lib/grpc-okhttp-1.44.1.jar"/>
+	<classpathentry kind="lib" path="/Users/evanyang/Desktop/SJSU/275/labs/grpc-route-blocking/lib/grpc-protobuf-1.44.1.jar"/>
+	<classpathentry kind="lib" path="/Users/evanyang/Desktop/SJSU/275/labs/grpc-route-blocking/lib/grpc-protobuf-lite-1.44.1.jar"/>
+	<classpathentry kind="lib" path="/Users/evanyang/Desktop/SJSU/275/labs/grpc-route-blocking/lib/grpc-services-1.44.1.jar"/>
+	<classpathentry kind="lib" path="/Users/evanyang/Desktop/SJSU/275/labs/grpc-route-blocking/lib/grpc-stub-1.44.1.jar"/>
+	<classpathentry kind="lib" path="/Users/evanyang/Desktop/SJSU/275/labs/grpc-route-blocking/lib/grpc-testing-1.44.1.jar"/>
+	<classpathentry kind="lib" path="/Users/evanyang/Desktop/SJSU/275/labs/grpc-route-blocking/lib/grpc-xds-1.44.1.jar"/>
+	<classpathentry kind="lib" path="/Users/evanyang/Desktop/SJSU/275/labs/grpc-route-blocking/lib/guava-31.0.1-jre.jar"/>
+	<classpathentry kind="lib" path="/Users/evanyang/Desktop/SJSU/275/labs/grpc-route-blocking/lib/javax.annotation-api-1.3.2.jar"/>
+	<classpathentry kind="lib" path="/Users/evanyang/Desktop/SJSU/275/labs/grpc-route-blocking/lib/perfmark-api-0.23.0.jar"/>
+	<classpathentry kind="lib" path="/Users/evanyang/Desktop/SJSU/275/labs/grpc-route-blocking/lib/protobuf-java-3.19.4.jar"/>
+	<classpathentry kind="lib" path="/Users/evanyang/Desktop/SJSU/275/labs/grpc-route-blocking/lib/protobuf-java-util-3.19.4-javadoc.jar"/>
+	<classpathentry kind="lib" path="/Users/evanyang/Desktop/SJSU/275/labs/grpc-route-blocking/lib/slf4j-api-1.7.25.jar"/>
+	<classpathentry kind="lib" path="/Users/evanyang/Desktop/SJSU/275/labs/grpc-route-blocking/lib/slf4j-simple-1.7.25.jar"/>
+	<classpathentry kind="output" path="bin"/>
+</classpath>

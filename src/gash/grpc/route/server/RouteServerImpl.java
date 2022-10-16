@@ -37,9 +37,10 @@ import route.RouteServiceGrpc.RouteServiceImplBase;
  */
 public class RouteServerImpl extends RouteServiceImplBase {
     private Server svr;
+    private final int MAX_SIZE= 5;
 
 //	private Queue<Work> reqQueue = new SynchronousQueue();
-    private BlockingQueue<Work> reqQueue = new ArrayBlockingQueue(1024);
+    private BlockingQueue<Work> reqQueue = new ArrayBlockingQueue(MAX_SIZE);
 
     /**
      * Configuration of the server's identity, port, and role
@@ -135,35 +136,41 @@ public class RouteServerImpl extends RouteServiceImplBase {
      */
     @Override
     public void request(route.Route request, StreamObserver<route.Route> responseObserver) {
+    	
+    	
+    	if (reqQueue.size() < 5 ) {
+    		// add work to queue
+    		Work work = new Work(request, responseObserver);
+            reqQueue.add(work);
+    	} else {
+    		// forward
+    		if (RouteServer.getInstance().getNextServerID() != 9999) {
+    			// 9999 means there's no next server
+    			ManagedChannel ch = ManagedChannelBuilder
+                        .forAddress("localhost", RouteServer.getInstance().getNextServerPort())
+                        .usePlaintext()
+                        .build();
+                RouteServiceGrpc.RouteServiceBlockingStub stub = RouteServiceGrpc.newBlockingStub(ch);
+                var res = stub.request(request);
+                responseObserver.onNext(res);
+                responseObserver.onCompleted();
+                ch.shutdown();
+                return;
+    		} else {
+    			// throw exception, since there's no next server
+    		}
+    	}
+    	
+    	
+    	// do something time-consuming. e.g. I/O, access database
+    	try {
+			Thread.sleep(3000);
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 
-        // if the server is the last server, no forwarding, if queue is full, forward to
-        // next server
-        if (RouteServer.getInstance().getServerID() != 1236 && reqQueue.size() >= 2) {
-
-            ManagedChannel ch = ManagedChannelBuilder
-                    .forAddress("localhost", RouteServer.getInstance().getNextServerPort()).usePlaintext().build();
-            RouteServiceGrpc.RouteServiceBlockingStub stub = RouteServiceGrpc.newBlockingStub(ch);
-
-            // request
-            var res = stub.request(request);
-
-            responseObserver.onNext(res);
-//            responseObserver.onCompleted();
-            
-//            route.Route.Builder builder = route.Route.newBuilder();
-
-//            responseObserver.onNext(Route.newBuilder()
-//                    .setMessage("return from " + RouteServer.getInstance().getNextServerID()).build());
-            responseObserver.onCompleted();
-            ch.shutdown();
-
-        }
-
-        Work work = new Work(request, responseObserver);
-        reqQueue.add(work);
-
-//		while (!reqQueue.isEmpty()) {
-        while (reqQueue.size() > 2) {
+		while (!reqQueue.isEmpty()) {
             Work w = reqQueue.poll();
             w.run();
         }
