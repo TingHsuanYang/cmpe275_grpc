@@ -9,7 +9,6 @@ project_base="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 # generated code is put here
 generated_base=${project_base}/generated
-# generated_base=${project_base}/generated
 
 # define protoc to use - otherwise it uses your env path
 PROTOC_HOME=/usr/local/Cellar/protobuf/21.5

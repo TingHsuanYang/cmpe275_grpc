@@ -55,7 +55,7 @@ public class RouteClient {
 
     private static final void doRequest(ManagedChannel channel) {
         RouteServiceGrpc.RouteServiceBlockingStub stub = RouteServiceGrpc.newBlockingStub(channel);
-        final int I = 100;
+        final int I = 1;
         for (int i = 0; i < I; i++) {
             var msg = RouteClient.constructMessage(i, "/to/somewhere", "hello");
 

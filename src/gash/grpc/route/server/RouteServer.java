@@ -30,6 +30,7 @@ public class RouteServer {
 	protected static AtomicReference<RouteServer> instance = new AtomicReference<RouteServer>();
 	protected static Properties conf;
 	protected Long serverID;
+	protected String serverName;
 	protected Long nextServerID;
 	protected Integer serverPort;
 	protected Integer nextServerPort;
@@ -59,6 +60,11 @@ public class RouteServer {
 		if (tmp == null)
 			throw new RuntimeException("missing server ID");
 		serverID = Long.parseLong(tmp);
+		
+		tmp = conf.getProperty("server.name");
+		if (tmp == null)
+			throw new RuntimeException("missing server name");
+		serverName = tmp;
 
 		tmp = conf.getProperty("server.port");
 		if (tmp == null)
@@ -89,6 +95,10 @@ public class RouteServer {
 
 	public Long getServerID() {
 		return serverID;
+	}
+	
+	public String getServerName() {
+		return serverName;
 	}
 	
 	public Long getNextServerID() {

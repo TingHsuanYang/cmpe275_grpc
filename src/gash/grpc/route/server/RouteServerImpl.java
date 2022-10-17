@@ -8,6 +8,7 @@ import java.util.Properties;
 import java.util.Queue;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.SynchronousQueue;
 
 import gash.grpc.route.client.RouteClient;
@@ -15,6 +16,8 @@ import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import route.Route;
 import route.RouteServiceGrpc;
@@ -36,165 +39,171 @@ import route.RouteServiceGrpc.RouteServiceImplBase;
  * the License.
  */
 public class RouteServerImpl extends RouteServiceImplBase {
-    private Server svr;
+	private Server svr;
+	private final int MAX_SIZE = 2;
 
-//	private Queue<Work> reqQueue = new SynchronousQueue();
-    private BlockingQueue<Work> reqQueue = new ArrayBlockingQueue(1024);
+	private ConcurrentLinkedQueue<Work> queue = new ConcurrentLinkedQueue<Work>();
 
-    /**
-     * Configuration of the server's identity, port, and role
-     */
-    private static Properties getConfiguration(final File path) throws IOException {
-        if (!path.exists())
-            throw new IOException("missing file");
+	/**
+	 * Configuration of the server's identity, port, and role
+	 */
+	private static Properties getConfiguration(final File path) throws IOException {
+		if (!path.exists())
+			throw new IOException("missing file");
 
-        Properties rtn = new Properties();
-        FileInputStream fis = null;
-        try {
-            fis = new FileInputStream(path);
-            rtn.load(fis);
-        } finally {
-            if (fis != null) {
-                try {
-                    fis.close();
-                } catch (IOException e) {
-                    // ignore
-                }
-            }
-        }
+		Properties rtn = new Properties();
+		FileInputStream fis = null;
+		try {
+			fis = new FileInputStream(path);
+			rtn.load(fis);
+		} finally {
+			if (fis != null) {
+				try {
+					fis.close();
+				} catch (IOException e) {
+					// ignore
+				}
+			}
+		}
 
-        return rtn;
-    }
+		return rtn;
+	}
 
-    /**
-     * TODO refactor this!
-     * 
-     * @param path
-     * @param payload
-     * @return
-     */
-//	protected ByteString process(route.Route msg) {
-//		String content = new String(msg.getPayload().toByteArray());
-//		System.out.println("-- got: " + msg.getOrigin() + ", path: " + msg.getPath() + ", with: " + content);
-//
-//		// TODO complete processing
-//		final String blank = "blank";
-//		byte[] raw = blank.getBytes();
-//
-//		return ByteString.copyFrom(raw);
-//	}
+	/**
+	 * TODO refactor this!
+	 * 
+	 * @param path
+	 * @param payload
+	 * @return
+	 */
+	public static void main(String[] args) throws Exception {
+		// check args!
+		if (args.length == 0) {
+			System.out.println("Need one argument to work");
+		}
 
-    public static void main(String[] args) throws Exception {
-        // check args!
-        if (args.length == 0) {
-            System.out.println("Need one argument to work");
-        }
+		String path = args[0];
+		try {
+			Properties conf = RouteServerImpl.getConfiguration(new File(path));
+			RouteServer.configure(conf);
 
-        String path = args[0];
-        try {
-            Properties conf = RouteServerImpl.getConfiguration(new File(path));
-            RouteServer.configure(conf);
+			/* Similar to the socket, waiting for a connection */
+			final RouteServerImpl impl = new RouteServerImpl();
+			impl.start();
+			impl.blockUntilShutdown();
 
-            /* Similar to the socket, waiting for a connection */
-            final RouteServerImpl impl = new RouteServerImpl();
-            impl.start();
-            impl.blockUntilShutdown();
+		} catch (IOException e) {
+			// TODO better error message
+			e.printStackTrace();
+		}
+	}
 
-        } catch (IOException e) {
-            // TODO better error message
-            e.printStackTrace();
-        }
-    }
+	private void start() throws Exception {
+		svr = ServerBuilder.forPort(RouteServer.getInstance().getServerPort()).addService(new RouteServerImpl())
+				.build();
 
-    private void start() throws Exception {
-        svr = ServerBuilder.forPort(RouteServer.getInstance().getServerPort()).addService(new RouteServerImpl())
-                .build();
+		System.out.println("-- starting server");
+		svr.start();
 
-        System.out.println("-- starting server");
-        svr.start();
+		Runtime.getRuntime().addShutdownHook(new Thread() {
+			@Override
+			public void run() {
+				RouteServerImpl.this.stop();
+			}
+		});
+	}
 
-        Runtime.getRuntime().addShutdownHook(new Thread() {
-            @Override
-            public void run() {
-                RouteServerImpl.this.stop();
-            }
-        });
-    }
+	protected void stop() {
+		svr.shutdown();
+	}
 
-    protected void stop() {
-        svr.shutdown();
-    }
+	private void blockUntilShutdown() throws Exception {
+		/* TODO what clean up is required? */
+		svr.awaitTermination();
+	}
 
-    private void blockUntilShutdown() throws Exception {
-        /* TODO what clean up is required? */
-        svr.awaitTermination();
-    }
+	/**
+	 * server received a message!
+	 */
+	@Override
+	public void request(route.Route request, StreamObserver<route.Route> responseObserver) {
 
-    /**
-     * server received a message!
-     */
-    @Override
-    public void request(route.Route request, StreamObserver<route.Route> responseObserver) {
+		if (queue.size() < MAX_SIZE) {
+			System.out.println("add work to queue! Queue Size: " + queue.size());
+			// add work to queue
+			Work work = new Work(request, responseObserver);
+			queue.add(work);
+		} else {
+			// forward
+			if (RouteServer.getInstance().getNextServerID() != 9999L) {
+				System.out.println("forward to next server");
+				// 9999 means there's no next server
+				ManagedChannel ch = ManagedChannelBuilder
+						.forAddress("localhost", RouteServer.getInstance().getNextServerPort()).usePlaintext().build();
+				RouteServiceGrpc.RouteServiceBlockingStub stub = RouteServiceGrpc.newBlockingStub(ch);
+				Route res = null;
+				try {
+					res = stub.request(request);
+					responseObserver.onNext(res);
+				} catch (StatusRuntimeException e) {
+					if (e.getStatus().getCode() == Status.Code.UNAVAILABLE) {
+						System.out.println("Return the error back: Reach the end of server pipline!");
+						responseObserver.onError(e); // return the error back to previous client
+					} else {
+						System.out.println("Got an exception in request");
+						e.printStackTrace();
+					}
+				}
+				responseObserver.onCompleted();
+				ch.shutdown();
+			} else {
+				// throw exception, since there's no next server
+				System.out.println("Reach the end of server pipline!");
+				responseObserver.onError(Status.UNAVAILABLE.withDescription("Reach the end of server pipline!")
+						.augmentDescription("sent from: " + RouteServer.getInstance().getServerName())
+						.asRuntimeException());
+			}
+		}
 
-        // if the server is the last server, no forwarding, if queue is full, forward to
-        // next server
-        if (RouteServer.getInstance().getServerID() != 1236 && reqQueue.size() >= 2) {
+		// Simulation: do something time-consuming. e.g. I/O, access database
+		try {
+			Thread.sleep(3000);
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
 
-            ManagedChannel ch = ManagedChannelBuilder
-                    .forAddress("localhost", RouteServer.getInstance().getNextServerPort()).usePlaintext().build();
-            RouteServiceGrpc.RouteServiceBlockingStub stub = RouteServiceGrpc.newBlockingStub(ch);
+		while (!queue.isEmpty()) {
+			Work w = queue.poll();
+			w.run();
+		}
+	}
 
-            // request
-            var res = stub.request(request);
+	// we can't use this...no need to open another thread for stream request
+	@Override
+	public StreamObserver<Route> streamRequest(StreamObserver<Route> responseObserver) {
 
-            responseObserver.onNext(res);
-//            responseObserver.onCompleted();
-            
-//            route.Route.Builder builder = route.Route.newBuilder();
+		return new StreamObserver<Route>() {
 
-//            responseObserver.onNext(Route.newBuilder()
-//                    .setMessage("return from " + RouteServer.getInstance().getNextServerID()).build());
-            responseObserver.onCompleted();
-            ch.shutdown();
+			@Override
+			public void onCompleted() {
+				responseObserver.onCompleted();
+			}
 
-        }
+			@Override
+			public void onError(Throwable t) {
+				responseObserver.onError(t);
+			}
 
-        Work work = new Work(request, responseObserver);
-        reqQueue.add(work);
+			@Override
+			public void onNext(Route req) {
+				System.out
+						.println("ID: " + req.getId() + ", Path: " + req.getPath() + ", Messages: " + req.getMessage());
+				responseObserver.onNext(Route.newBuilder()
+						.setMessage("Return from serverID: " + RouteServer.getInstance().getServerID()).build());
+			}
 
-//		while (!reqQueue.isEmpty()) {
-        while (reqQueue.size() > 2) {
-            Work w = reqQueue.poll();
-            w.run();
-        }
-    }
+		};
 
-    // we can't use this...we don't need another process to handle the streamRequest
-    @Override
-    public StreamObserver<Route> streamRequest(StreamObserver<Route> responseObserver) {
-
-        return new StreamObserver<Route>() {
-
-            @Override
-            public void onCompleted() {
-                responseObserver.onCompleted();
-            }
-
-            @Override
-            public void onError(Throwable t) {
-                responseObserver.onError(t);
-            }
-
-            @Override
-            public void onNext(Route req) {
-                System.out
-                        .println("ID: " + req.getId() + ", Path: " + req.getPath() + ", Messages: " + req.getMessage());
-                responseObserver.onNext(Route.newBuilder().setMessage(
-                        "Return from serverID: " + RouteServer.getInstance().getServerID()).build());
-            }
-
-        };
-
-    }
+	}
 
 }
