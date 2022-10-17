@@ -10,8 +10,6 @@ public class Work implements Runnable {
 	private Route request;
 	private StreamObserver<route.Route> responseObserver;
 
-	private int stats;
-	private int someOtherStuff;
 
 	public Work(Route request, StreamObserver<route.Route> responseObserver) {
 		this.request = request;
@@ -32,12 +30,11 @@ public class Work implements Runnable {
 		// do the work and reply
 		builder.setPayload(process());
 		
-//		try {
-//            Thread.sleep(3000);
-//        } catch (InterruptedException e) {
-//            // TODO Auto-generated catch block
-//            e.printStackTrace();
-//        }
+		try {
+			Thread.sleep(1000);
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
 
 		route.Route rtn = builder.build();
 		responseObserver.onNext(rtn);
