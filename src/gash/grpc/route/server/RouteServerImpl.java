@@ -3,13 +3,10 @@ package gash.grpc.route.server;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.util.LinkedList;
 import java.util.Properties;
-import java.util.Queue;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.SynchronousQueue;
+
+import com.google.protobuf.ByteString;
 
 import gash.grpc.route.client.RouteClient;
 import io.grpc.ManagedChannel;
@@ -126,24 +123,30 @@ public class RouteServerImpl extends RouteServiceImplBase {
 	 * server received a message!
 	 */
 	@Override
-	public void request(route.Route request, StreamObserver<route.Route> responseObserver) {
-
+	public void request(Route request, StreamObserver<Route> responseObserver) {
+		
+		System.out.println(String.format("get request from %s, with %s", request.getOrigin(), new String(request.getPayload().toByteArray())));
 		if (queue.size() < MAX_SIZE) {
-			System.out.println("add work to queue! Queue Size: " + queue.size());
-			// add work to queue
+			System.out.println(String.format("--Add work to queue! Queue Size: %d", queue.size()));
 			Work work = new Work(request, responseObserver);
 			queue.add(work);
 		} else {
 			// forward
 			if (RouteServer.getInstance().getNextServerID() != 9999L) {
-				System.out.println("forward to next server");
+				System.out.println(String.format("--Forward to %s", RouteServer.getInstance().getNextServerID()));
 				// 9999 means there's no next server
 				ManagedChannel ch = ManagedChannelBuilder
-						.forAddress("localhost", RouteServer.getInstance().getNextServerPort()).usePlaintext().build();
+						.forAddress("localhost", RouteServer.getInstance().getNextServerPort())
+						.usePlaintext()
+						.build();
 				RouteServiceGrpc.RouteServiceBlockingStub stub = RouteServiceGrpc.newBlockingStub(ch);
 				Route res = null;
 				try {
-					res = stub.request(request);
+					// update path
+					Route newReq = Route.newBuilder(request)
+			        		.setPath(String.format("%s->%s", request.getPath(),RouteServer.getInstance().getServerName()))
+			        		.build();
+					res = stub.request(newReq);
 					responseObserver.onNext(res);
 				} catch (StatusRuntimeException e) {
 					if (e.getStatus().getCode() == Status.Code.UNAVAILABLE) {
@@ -158,7 +161,7 @@ public class RouteServerImpl extends RouteServiceImplBase {
 				ch.shutdown();
 			} else {
 				// throw exception, since there's no next server
-				System.out.println("Reach the end of server pipline!");
+				System.out.println("--Reach the end of server pipline!");
 				responseObserver.onError(Status.UNAVAILABLE.withDescription("Reach the end of server pipline!")
 						.augmentDescription("sent from: " + RouteServer.getInstance().getServerName())
 						.asRuntimeException());
@@ -176,6 +179,7 @@ public class RouteServerImpl extends RouteServiceImplBase {
 			Work w = queue.poll();
 			w.run();
 		}
+		
 	}
 
 	// we can't use this...no need to open another thread for stream request
