@@ -17,6 +17,7 @@ import io.grpc.ManagedChannelBuilder;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
 import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import route.Route;
 import route.RouteServiceGrpc;
@@ -98,8 +99,7 @@ public class RouteServerImpl extends RouteServiceImplBase {
 	}
 
 	private void start() throws Exception {
-		svr = ServerBuilder.forPort(RouteServer.getInstance().getServerPort())
-				.addService(new RouteServerImpl())
+		svr = ServerBuilder.forPort(RouteServer.getInstance().getServerPort()).addService(new RouteServerImpl())
 				.build();
 
 		System.out.println("-- starting server");
@@ -141,16 +141,25 @@ public class RouteServerImpl extends RouteServiceImplBase {
 				ManagedChannel ch = ManagedChannelBuilder
 						.forAddress("localhost", RouteServer.getInstance().getNextServerPort()).usePlaintext().build();
 				RouteServiceGrpc.RouteServiceBlockingStub stub = RouteServiceGrpc.newBlockingStub(ch);
-				Route res;
+				Route res = null;
+				try {
 					res = stub.request(request);
 					responseObserver.onNext(res);
-					responseObserver.onCompleted();
+				} catch (StatusRuntimeException e) {
+					if (e.getStatus().getCode() == Status.Code.UNAVAILABLE) {
+						System.out.println("Return the error back: Reach the end of server pipline!");
+						responseObserver.onError(e); // return the error back to previous client
+					} else {
+						System.out.println("Got an exception in request");
+						e.printStackTrace();
+					}
+				}
+				responseObserver.onCompleted();
 				ch.shutdown();
 			} else {
 				// throw exception, since there's no next server
-				System.out.println("there's no next server...");
-				responseObserver.onError(Status.UNAVAILABLE
-						.withDescription("There's no next server!")
+				System.out.println("Reach the end of server pipline!");
+				responseObserver.onError(Status.UNAVAILABLE.withDescription("Reach the end of server pipline!")
 						.augmentDescription("sent from: " + RouteServer.getInstance().getServerName())
 						.asRuntimeException());
 			}
@@ -187,11 +196,10 @@ public class RouteServerImpl extends RouteServiceImplBase {
 
 			@Override
 			public void onNext(Route req) {
-				System.out.println("ID: " + req.getId() + ", Path: " + req.getPath() + ", Messages: " + req.getMessage());
+				System.out
+						.println("ID: " + req.getId() + ", Path: " + req.getPath() + ", Messages: " + req.getMessage());
 				responseObserver.onNext(Route.newBuilder()
-						.setMessage("Return from serverID: " + RouteServer.getInstance().getServerID())
-						.build()
-						);
+						.setMessage("Return from serverID: " + RouteServer.getInstance().getServerID()).build());
 			}
 
 		};
