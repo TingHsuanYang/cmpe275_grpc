@@ -3,7 +3,6 @@ package gash.grpc.route.client;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.util.Scanner;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -36,37 +35,29 @@ public class RouteClient {
     private static int port = 2345;
 
     private static final Route constructMessage(int mID, String path, String payload) {
-        Route.Builder bld = Route.newBuilder();
-        bld.setId(mID);
-        bld.setOrigin(RouteClient.clientID);
-        bld.setPath(path);
-
-        byte[] hello = payload.getBytes();
-        bld.setPayload(ByteString.copyFrom(hello));
-
-        return bld.build();
+    	// client -> server1 -> server2 -> ...
+        return Route.newBuilder()
+        		.setId(mID)
+        		.setOrigin(RouteClient.clientID)
+        		.setPath(path)
+        		.setPayload(ByteString.copyFrom(payload.getBytes()))
+        		.build();
     }
 
-    private static final void response(Route reply) {
-        // TODO handle the reply/response from the server
+    private static final void showResponse(Route reply) {
         var payload = new String(reply.getPayload().toByteArray());
-        System.out.println("reply: " + reply.getId() + ", from: " + reply.getOrigin() + ", payload: " + payload);
+        System.out.println(String.format("reply: %s, path: %s",payload, reply.getPath()));
     }
 
-    private static final void doRequest(ManagedChannel channel) {
-        RouteServiceGrpc.RouteServiceBlockingStub stub = RouteServiceGrpc.newBlockingStub(channel);
-        final int I = 1;
-        for (int i = 0; i < I; i++) {
-            var msg = RouteClient.constructMessage(i, "/to/somewhere", "hello");
-
-            // blocking!
-            var r = stub.request(msg);
-            response(r);
-
-        }
-
-        channel.shutdown();
-    }
+	private static final void doRequest(ManagedChannel channel) {
+		RouteServiceGrpc.RouteServiceBlockingStub stub = RouteServiceGrpc.newBlockingStub(channel);
+		final int I = 1;
+		for (int i = 0; i < I; i++) {
+			var msg = RouteClient.constructMessage(i, "client", "hello");
+			var r = stub.request(msg);
+			showResponse(r);
+		}
+	}
 
     private static final void doStreamRequest(ManagedChannel channel) throws IOException, InterruptedException {
         System.out.println("Enter doStreamRequest");
@@ -83,7 +74,6 @@ public class RouteClient {
             @Override
             public void onError(Throwable arg0) {
                 // TODO Auto-generated method stub
-                
             }
 
             @Override
@@ -114,26 +104,30 @@ public class RouteClient {
         latch.await(3, TimeUnit.SECONDS);
     }
 
-    public static void main(String[] args) throws IOException, InterruptedException {
+	public static void main(String[] args) throws IOException, InterruptedException {
 
-        if (args.length == 0) {
-            System.out.println("Need one argument to work");
-            return;
-        }
+		if (args.length < 2) {
+			System.out.println("Need 2 argument to work");
+			return;
+		}
 
-        ManagedChannel channel = ManagedChannelBuilder.forAddress("localhost", RouteClient.port).usePlaintext().build();
+		clientID = Long.parseLong(args[1]);
 
-        switch (args[0]) {
-            case "request":
-                doRequest(channel);
-                break;
-            case "streamRequest":
-                doStreamRequest(channel);
-                break;
-            default:
-                System.out.println("Keyword Invalid: " + args[0]);
-                break;
-        }
+		ManagedChannel channel = ManagedChannelBuilder.forAddress("localhost", RouteClient.port).usePlaintext().build();
 
-    }
+		switch (args[0]) {
+		case "request":
+			doRequest(channel);
+			break;
+		case "streamRequest":
+			doStreamRequest(channel);
+			break;
+		default:
+			System.out.println("Keyword Invalid: " + args[0]);
+			break;
+		}
+
+		channel.shutdown();
+
+	}
 }

@@ -8,7 +8,7 @@ import route.Route;
 public class Work implements Runnable {
 
 	private Route request;
-	private StreamObserver<route.Route> responseObserver;
+	private StreamObserver<Route> responseObserver;
 
 
 	public Work(Route request, StreamObserver<route.Route> responseObserver) {
@@ -19,16 +19,13 @@ public class Work implements Runnable {
 	@Override
 	public void run() {
 
-		route.Route.Builder builder = route.Route.newBuilder();
-
-		// routing/header information
-		builder.setId(RouteServer.getInstance().getNextMessageID());
-		builder.setOrigin(RouteServer.getInstance().getServerID());
-		builder.setDestination(request.getOrigin());
-		builder.setPath(request.getPath());
-
-		// do the work and reply
-		builder.setPayload(process());
+		Route response = Route.newBuilder(this.request)
+				.setId(RouteServer.getInstance().getNextMessageID())
+				.setOrigin(RouteServer.getInstance().getServerID())
+				.setDestination(request.getOrigin())
+				.setPath(String.format("%s->%s", this.request.getPath(),RouteServer.getInstance().getServerName()))
+				.setPayload(process())
+				.build();
 		
 		try {
 			Thread.sleep(1000);
@@ -36,8 +33,7 @@ public class Work implements Runnable {
 			e.printStackTrace();
 		}
 
-		route.Route rtn = builder.build();
-		responseObserver.onNext(rtn);
+		responseObserver.onNext(response);
 		responseObserver.onCompleted();
 
 	}
@@ -45,10 +41,10 @@ public class Work implements Runnable {
 	private ByteString process() {
 
 		String content = new String(this.request.getPayload().toByteArray());
-		System.out.println("-- got: " + this.request.getOrigin() + ", path: " + this.request.getPath() + ", with: " + content);
+		System.out.println("-- WORK got: " + this.request.getOrigin() + ", path: " + this.request.getPath() + ", with: " + content);
 
 		// TODO complete processing
-		final String blank = "blank";
+		final String blank = String.format("hello from %s", RouteServer.getInstance().getServerName());
 		byte[] raw = blank.getBytes();
 
 		return ByteString.copyFrom(raw);
