@@ -4,11 +4,8 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.Properties;
-import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 
-import com.google.protobuf.ByteString;
-
-import gash.grpc.route.client.RouteClient;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.Server;
@@ -39,7 +36,7 @@ public class RouteServerImpl extends RouteServiceImplBase {
 	private Server svr;
 	private final int MAX_SIZE = 2;
 
-	private ConcurrentLinkedQueue<Work> queue = new ConcurrentLinkedQueue<Work>();
+	private LinkedBlockingQueue<Work> queue = new LinkedBlockingQueue<Work>(MAX_SIZE);
 
 	/**
 	 * Configuration of the server's identity, port, and role
@@ -126,11 +123,12 @@ public class RouteServerImpl extends RouteServiceImplBase {
 	public void request(Route request, StreamObserver<Route> responseObserver) {
 		
 		System.out.println(String.format("get request from %s, with %s", request.getOrigin(), new String(request.getPayload().toByteArray())));
-		if (queue.size() < MAX_SIZE) {
-			System.out.println(String.format("--Add work to queue! Queue Size: %d", queue.size()));
+		try {
 			Work work = new Work(request, responseObserver);
 			queue.add(work);
-		} else {
+			System.out.println(String.format("--Add work to queue! Queue Size: %d", queue.size()));
+		} catch (IllegalStateException e) {
+			System.out.println("Queue full");
 			// forward
 			if (RouteServer.getInstance().getNextServerID() != 9999L) {
 				System.out.println(String.format("--Forward to %s", RouteServer.getInstance().getNextServerID()));
@@ -143,26 +141,26 @@ public class RouteServerImpl extends RouteServiceImplBase {
 				Route res = null;
 				try {
 					// update path
-					Route newReq = Route.newBuilder(request)
-			        		.setPath(String.format("%s->%s", request.getPath(),RouteServer.getInstance().getServerName()))
-			        		.build();
+					Route newReq = Route.newBuilder(request).setPath(
+							String.format("%s->%s", request.getPath(), RouteServer.getInstance().getServerName()))
+							.build();
 					res = stub.request(newReq);
 					responseObserver.onNext(res);
-				} catch (StatusRuntimeException e) {
-					if (e.getStatus().getCode() == Status.Code.UNAVAILABLE) {
-						System.out.println("Return the error back: Reach the end of server pipline!");
-						responseObserver.onError(e); // return the error back to previous client
+					responseObserver.onCompleted();
+				} catch (StatusRuntimeException se) {
+					if (se.getStatus().getCode() == Status.Code.UNAVAILABLE) {
+						System.out.println(se.getMessage());
+						responseObserver.onError(se); // return the error back to previous client
 					} else {
 						System.out.println("Got an exception in request");
-						e.printStackTrace();
+						se.printStackTrace();
 					}
 				}
-				responseObserver.onCompleted();
 				ch.shutdown();
 			} else {
 				// throw exception, since there's no next server
-				System.out.println("--Reach the end of server pipline!");
-				responseObserver.onError(Status.UNAVAILABLE.withDescription("Reach the end of server pipline!")
+				System.out.println(String.format("--%s Reach the end of server pipline!", request.getOrigin()));
+				responseObserver.onError(Status.UNAVAILABLE.withDescription(String.format("%s Reach the end of server pipline!", request.getOrigin()))
 						.augmentDescription("sent from: " + RouteServer.getInstance().getServerName())
 						.asRuntimeException());
 			}
@@ -176,8 +174,16 @@ public class RouteServerImpl extends RouteServiceImplBase {
 		}
 
 		while (!queue.isEmpty()) {
-			Work w = queue.poll();
-			w.run();
+		
+			Work w;
+			try {
+				w = queue.take();
+				w.run();
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			
 		}
 		
 	}

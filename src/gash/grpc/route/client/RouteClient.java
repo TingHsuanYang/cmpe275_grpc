@@ -35,7 +35,6 @@ public class RouteClient {
     private static int port = 2345;
 
     private static final Route constructMessage(int mID, String path, String payload) {
-    	// client -> server1 -> server2 -> ...
         return Route.newBuilder()
         		.setId(mID)
         		.setOrigin(RouteClient.clientID)
