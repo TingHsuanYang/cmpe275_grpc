@@ -6,6 +6,9 @@ import java.io.IOException;
 import java.util.Properties;
 import java.util.concurrent.LinkedBlockingQueue;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.Server;
@@ -33,6 +36,9 @@ import route.RouteServiceGrpc.RouteServiceImplBase;
  * the License.
  */
 public class RouteServerImpl extends RouteServiceImplBase {
+
+	private static Logger logger = LoggerFactory.getLogger(RouteServerImpl.class);
+
 	private Server svr;
 	private final int MAX_SIZE = 2;
 
@@ -73,7 +79,8 @@ public class RouteServerImpl extends RouteServiceImplBase {
 	public static void main(String[] args) throws Exception {
 		// check args!
 		if (args.length == 0) {
-			System.out.println("Need one argument to work");
+			logger.info("Need one argument to work");
+	
 		}
 
 		String path = args[0];
@@ -96,7 +103,8 @@ public class RouteServerImpl extends RouteServiceImplBase {
 		svr = ServerBuilder.forPort(RouteServer.getInstance().getServerPort()).addService(new RouteServerImpl())
 				.build();
 
-		System.out.println("-- starting server");
+		logger.info("-- starting server");		
+	
 		svr.start();
 
 		Runtime.getRuntime().addShutdownHook(new Thread() {
@@ -121,17 +129,19 @@ public class RouteServerImpl extends RouteServiceImplBase {
 	 */
 	@Override
 	public void request(Route request, StreamObserver<Route> responseObserver) {
-		
-		System.out.println(String.format("get request from %s, with %s", request.getOrigin(), new String(request.getPayload().toByteArray())));
+
+		logger.info("get request from "+request.getOrigin()+" with "+ new String(request.getPayload().toByteArray()));
+
 		try {
 			Work work = new Work(request, responseObserver);
 			queue.add(work);
-			System.out.println(String.format("--Add work to queue! Queue Size: %d", queue.size()));
+			logger.info("--Add work to queue! Queue Size: "+queue.size());
+		
 		} catch (IllegalStateException e) {
-			System.out.println("Queue full");
+			logger.info("Queue full");
 			// forward
 			if (RouteServer.getInstance().getNextServerID() != 9999L) {
-				System.out.println(String.format("--Forward to %s", RouteServer.getInstance().getNextServerID()));
+				logger.info("----Forward to : "+RouteServer.getInstance().getNextServerID());
 				// 9999 means there's no next server
 				ManagedChannel ch = ManagedChannelBuilder
 						.forAddress("localhost", RouteServer.getInstance().getNextServerPort())
@@ -149,7 +159,7 @@ public class RouteServerImpl extends RouteServiceImplBase {
 					responseObserver.onCompleted();
 				} catch (StatusRuntimeException se) {
 					if (se.getStatus().getCode() == Status.Code.UNAVAILABLE) {
-						System.out.println(se.getMessage());
+						logger.info(se.getMessage());
 						responseObserver.onError(se); // return the error back to previous client
 					} else {
 						System.out.println("Got an exception in request");
@@ -159,7 +169,7 @@ public class RouteServerImpl extends RouteServiceImplBase {
 				ch.shutdown();
 			} else {
 				// throw exception, since there's no next server
-				System.out.println(String.format("--%s Reach the end of server pipline!", request.getOrigin()));
+				logger.error("---"+request.getOrigin() +" Reach the end of server pipline! ");
 				responseObserver.onError(Status.UNAVAILABLE.withDescription(String.format("%s Reach the end of server pipline!", request.getOrigin()))
 						.augmentDescription("sent from: " + RouteServer.getInstance().getServerName())
 						.asRuntimeException());
@@ -206,9 +216,10 @@ public class RouteServerImpl extends RouteServiceImplBase {
 
 			@Override
 			public void onNext(Route req) {
-				System.out
-						.println("ID: " + req.getId() + ", Path: " + req.getPath() + ", Messages: " + req.getMessage());
-				responseObserver.onNext(Route.newBuilder()
+
+				logger.info("ID: " + req.getId() + ", Path: " + req.getPath() + ", Messages: " + req.getMessage());
+			
+						responseObserver.onNext(Route.newBuilder()
 						.setMessage("Return from serverID: " + RouteServer.getInstance().getServerID()).build());
 			}
 
