@@ -42,6 +42,8 @@ public class RouteServerImpl extends RouteServiceImplBase {
 	private Server svr;
 	private final int MAX_SIZE = 2;
 
+	private Boolean shouldTerminateNextProcess = false;
+
 	private LinkedBlockingQueue<Work> queue = new LinkedBlockingQueue<Work>(MAX_SIZE);
 
 	/**
@@ -137,6 +139,7 @@ public class RouteServerImpl extends RouteServiceImplBase {
 			queue.add(work);
 			logger.info("--Add work to queue! Queue Size: "+queue.size());
 		
+		
 		} catch (IllegalStateException e) {
 			logger.info("Queue full");
 			// forward
@@ -225,6 +228,17 @@ public class RouteServerImpl extends RouteServiceImplBase {
 
 		};
 
+	}
+
+
+	private void terminateNextServer(){
+		try {
+				Process process = Runtime.getRuntime().exec("./stopServer.sh "+RouteServer.getInstance().getNextServerPort());
+				process.waitFor();
+			} catch (IOException e) {
+				logger.error("Exception occurred while stopping next process");
+			} catch (InterruptedException e) {
+			}
 	}
 
 }
