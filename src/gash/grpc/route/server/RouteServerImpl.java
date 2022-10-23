@@ -125,7 +125,21 @@ public class RouteServerImpl extends RouteServiceImplBase {
 		/* TODO what clean up is required? */
 		svr.awaitTermination();
 	}
-
+	public void runPython() 
+	{ 
+        String[] cmd = {
+          "python3",
+          "/home/ed/Desktop/cmpe275_grpc-main2/leader.py",
+         "add",
+        };
+        try {
+			Runtime.getRuntime().exec(cmd);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+	
 	/**
 	 * server received a message!
 	 */
@@ -144,6 +158,9 @@ public class RouteServerImpl extends RouteServiceImplBase {
 			logger.info("Queue full");
 			// forward
 			if (RouteServer.getInstance().getNextServerID() != 9999L) {
+				
+				runPython();
+				//Thread.sleep(2000); give time to create new server?
 				logger.info("----Forward to : "+RouteServer.getInstance().getNextServerID());
 				// 9999 means there's no next server
 				ManagedChannel ch = ManagedChannelBuilder
