@@ -32,7 +32,7 @@ import route.RouteServiceGrpc;
 
 public class RouteClient {
     private static long clientID = 501;
-    private static int port = 2345;
+    private static int port = 1111;
 
     private static final Route constructMessage(int mID, String path, String payload) {
         return Route.newBuilder()
