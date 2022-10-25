@@ -35,6 +35,7 @@ public class RouteServer {
 	protected Integer serverPort;
 	protected Integer nextServerPort;
 	protected Long nextMessageID;
+	protected Integer threshold;
 
 	private RouteServer() {
 		init();
@@ -65,6 +66,11 @@ public class RouteServer {
 		if (tmp == null)
 			throw new RuntimeException("missing server name");
 		serverName = tmp;
+
+		tmp = conf.getProperty("server.threshold");
+		if (tmp == null)
+			throw new RuntimeException("missing server threshold");
+			threshold = Integer.parseInt(tmp);
 
 		tmp = conf.getProperty("server.port");
 		if (tmp == null)
@@ -115,5 +121,9 @@ public class RouteServer {
 	
 	public Integer getNextServerPort() {
 	    return nextServerPort;
+	}
+
+	public Integer getThreshold() {
+	    return threshold;
 	}
 }

@@ -40,7 +40,8 @@ public class RouteServerImpl extends RouteServiceImplBase {
 	private static Logger logger = LoggerFactory.getLogger(RouteServerImpl.class);
 
 	private Server svr;
-	private final int MAX_SIZE = 2;
+	private final static int MAX_SIZE = 20;
+	private static  int threshold = 0;
 
 	private Boolean shouldTerminateNextProcess = false;
 
@@ -89,7 +90,7 @@ public class RouteServerImpl extends RouteServiceImplBase {
 		try {
 			Properties conf = RouteServerImpl.getConfiguration(new File(path));
 			RouteServer.configure(conf);
-
+			threshold = Math.round(RouteServer.getInstance().getThreshold()*MAX_SIZE/100);
 			/* Similar to the socket, waiting for a connection */
 			final RouteServerImpl impl = new RouteServerImpl();
 			impl.start();
@@ -150,9 +151,10 @@ public class RouteServerImpl extends RouteServiceImplBase {
 
 		try {
 			Work work = new Work(request, responseObserver);
+			checkThreshold();
 			queue.add(work);
 			logger.info("--Add work to queue! Queue Size: "+queue.size());
-		
+
 		
 		} catch (IllegalStateException e) {
 			logger.info("Queue full");
@@ -256,6 +258,12 @@ public class RouteServerImpl extends RouteServiceImplBase {
 				logger.error("Exception occurred while stopping next process");
 			} catch (InterruptedException e) {
 			}
+	}
+
+	private synchronized void checkThreshold(){
+		if(threshold!=0 && queue.size()>=threshold){
+			runPython();
+		}
 	}
 
 }

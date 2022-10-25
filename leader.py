@@ -94,6 +94,7 @@ def add_server():
 	f.write("server.role=worker|monitor|leader"+"\n")
 	f.write("server.next.id="+str(next)+"\n")
 	f.write("server.next.port="+str(next)+"\n")
+	f.write("server.threshold=50"+"\n")
 	f.close()
 	server("server"+str(sernum)+".txt")
 		
