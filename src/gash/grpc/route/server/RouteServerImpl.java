@@ -161,7 +161,6 @@ public class RouteServerImpl extends RouteServiceImplBase {
 			// forward
 			if (RouteServer.getInstance().getNextServerID() != 9999L) {
 				
-				runPython();
 				//Thread.sleep(2000); give time to create new server?
 				logger.info("----Forward to : "+RouteServer.getInstance().getNextServerID());
 				// 9999 means there's no next server
@@ -181,6 +180,7 @@ public class RouteServerImpl extends RouteServiceImplBase {
 					responseObserver.onCompleted();
 				} catch (StatusRuntimeException se) {
 					if (se.getStatus().getCode() == Status.Code.UNAVAILABLE) {
+						runPython();
 						logger.info(se.getMessage());
 						responseObserver.onError(se); // return the error back to previous client
 					} else {

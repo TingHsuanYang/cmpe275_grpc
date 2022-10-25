@@ -38,6 +38,7 @@ def add_server():
 	next = int(sernum)+1
 	f = open("server"+str(sernum)+".txt", "w")
 	f.write("server.id="+str(sernum)+"\n")
+	f.write("server.name=server"+str(sernum)+"\n")
 	f.write("server.port="+str(sernum)+"\n")
 	f.write("server.role=worker|monitor|leader"+"\n")
 	f.write("server.next.id="+str(next)+"\n")
