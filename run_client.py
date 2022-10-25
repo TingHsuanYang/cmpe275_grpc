@@ -1,8 +1,8 @@
 import subprocess
 import sys 
 from multiprocessing import Process
-
-def client():
+import os
+def client(m):
 
 	f = open("runClient"+str(m)+".sh", "w")
 	f.write("#!/bin/bash\n")
@@ -19,6 +19,7 @@ def client():
 	process = subprocess.Popen(command.split(), stdout=subprocess.PIPE)
 	output, error = process.communicate()
 	print(output)
+	os.remove("runClient"+str(m)+".sh")
 
 
 if __name__ == "__main__":
@@ -27,10 +28,10 @@ if __name__ == "__main__":
 	processes=[]
 	print(number_of_clients)
 	for m in range(1,number_of_clients):
-		
+
 		p = Process(target=client, args=(m,))
 		p.start()
 		processes.append(p)
 		
-	for p in processes:
-		p.join()
+	for process in processes:
+		process.join()
